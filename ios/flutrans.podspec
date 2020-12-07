@@ -17,6 +17,7 @@ Midtrans Payment Gateway for Flutter.
   s.dependency 'Flutter'
   s.dependency 'MidtransCoreKit'
   s.dependency 'MidtransKit'
+  s.static_framework = true
   
   s.ios.deployment_target = '8.0'
 end
