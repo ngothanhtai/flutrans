@@ -50,6 +50,7 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
   public void onMethodCall(MethodCall call, Result result) {
     if(call.method.equals("init")) {
       initMidtransSdk((String)call.argument("client_key").toString(), call.argument("base_url").toString());
+      result.success();
     } else if(call.method.equals("payment")) {
       String str = call.arguments();
       payment(str);
@@ -94,6 +95,10 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
       transactionRequest.setCustomerDetails(cus);
       if(json.has("custom_field_1"))
         transactionRequest.setCustomField1(json.getString("custom_field_1"));
+      if(json.has("custom_field_2"))
+        transactionRequest.setCustomField2(json.getString("custom_field_2"));
+      if(json.has("custom_field_3"))
+        transactionRequest.setCustomField3(json.getString("custom_field_3"));
       transactionRequest.setItemDetails(itemList);
       UIKitCustomSetting setting = MidtransSDK.getInstance().getUIKitCustomSetting();
       if(json.has("skip_customer"))

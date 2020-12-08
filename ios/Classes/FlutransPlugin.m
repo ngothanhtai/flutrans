@@ -78,8 +78,8 @@ FlutterMethodChannel* channel;
           }
           NSMutableArray *arrayOfCustomField = [NSMutableArray new];
           [arrayOfCustomField addObject:@{MIDTRANS_CUSTOMFIELD_1:json[@"custom_field_1"]}];
-          [arrayOfCustomField addObject:@{MIDTRANS_CUSTOMFIELD_2:@""}];
-          [arrayOfCustomField addObject:@{MIDTRANS_CUSTOMFIELD_3:@""}];
+          [arrayOfCustomField addObject:@{MIDTRANS_CUSTOMFIELD_2:json[@"custom_field_2"]}];
+          [arrayOfCustomField addObject:@{MIDTRANS_CUSTOMFIELD_3:json[@"custom_field_3"]}];
           [[MidtransMerchantClient shared] requestTransactionTokenWithTransactionDetails:transDetail itemDetails:arr customerDetails:custDetail customField:arrayOfCustomField binFilter:nil blacklistBinFilter:nil transactionExpireTime:nil completion:^(MidtransTransactionTokenResponse *token, NSError *error)
            {
                if (token) {
@@ -87,9 +87,18 @@ FlutterMethodChannel* channel;
                    vc.paymentDelegate = delegate;
                    UIViewController *viewController = [UIApplication sharedApplication].keyWindow.rootViewController;
                    [viewController presentViewController:vc animated:YES completion:nil];
+                   
+                   return result(0);
+               }
+              
+              if (error) {
+                       return result([FlutterError
+                                      errorWithCode:error.code
+                                            message:error.localizedDescription
+                                            details:nil]);
                }
            }];
-          return result(0);
+          
       }
   } else {
     result(FlutterMethodNotImplemented);
