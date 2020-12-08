@@ -43,6 +43,8 @@ FlutterMethodChannel* channel;
             binaryMessenger:[registrar messenger]];
   FlutransPlugin* instance = [[FlutransPlugin alloc] init];
   [registrar addMethodCallDelegate:instance channel:channel];
+    CC_CONFIG.paymentType = MTCreditCardPaymentTypeOneclick;
+    CC_CONFIG.saveCardEnabled = YES;
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
@@ -85,20 +87,19 @@ FlutterMethodChannel* channel;
                if (token) {
                    MidtransUIPaymentViewController *vc = [[MidtransUIPaymentViewController new] initWithToken:token];
                    vc.paymentDelegate = delegate;
-                   UIViewController *viewController = [UIApplication sharedApplication].keyWindow.rootViewController;
+                   
+                   UIWindow* window = [UIApplication sharedApplication].keyWindow;
+                   UIViewController *viewController = window.rootViewController;
                    [viewController presentViewController:vc animated:YES completion:nil];
                    
                    return result(0);
-               }
-              
-              if (error) {
+               } else {
                        return result([FlutterError
-                                      errorWithCode:error.code
+                                      errorWithCode:error.domain
                                             message:error.localizedDescription
                                             details:nil]);
                }
            }];
-          
       }
   } else {
     result(FlutterMethodNotImplemented);
