@@ -89,7 +89,7 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
         itemList.add(item);
       }
 
-      if (json.has("customer")) {
+      if (!json.isNull("customer")) {
         JSONObject cJson = json.getJSONObject("customer");
         CustomerDetails cus = new CustomerDetails();
         cus.setFirstName(cJson.getString("first_name"));
@@ -98,7 +98,7 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
         cus.setPhone(cJson.getString("phone"));
 
 
-        if (json.has("address")) {
+        if (!json.isNull("address")) {
           JSONObject address = json.getJSONObject("address");
           String firstName = address.getString("first_name");
           String lastName = address.getString("last_name");
