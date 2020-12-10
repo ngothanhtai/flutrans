@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 typedef Future<void> MidtransCallback(TransactionFinished transactionFinished);
@@ -54,13 +56,6 @@ class Flutrans {
     await _channel.invokeMethod("payment", jsonEncode(transaction.toJson()));
     return Future.value(null);
   }
-
-  Future<void> makeDirectPaymentWithToken(
-      int method, String token, bool skipCustomer) async {
-    await _channel.invokeMethod("directpaymentwithtoken",
-        {"method": method, "token": token, "skipCustomer": skipCustomer});
-    return Future.value(null);
-  }
 }
 
 class MidtransCustomer {
@@ -80,6 +75,46 @@ class MidtransCustomer {
       "last_name": lastName,
       "email": email,
       "phone": phone,
+    };
+  }
+}
+
+class MidtransAddress {
+  final String firstName;
+  final String lastName;
+  final String phone;
+  final String address1;
+  final String city;
+  final String zip;
+  final String countryCode;
+
+  MidtransAddress(
+    this.firstName,
+    this.lastName,
+    this.phone,
+    this.address1,
+    this.city,
+    this.zip,
+    this.countryCode,
+  );
+
+  MidtransAddress.fromJson(Map<String, dynamic> json)
+      : firstName = json["first_name"],
+        lastName = json["last_name"],
+        phone = json["phone"],
+        address1 = json["address1"],
+        city = json["city"],
+        zip = json["zip"],
+        countryCode = json["country_code"];
+  Map<String, dynamic> toJson() {
+    return {
+      "first_name": firstName,
+      "last_name": lastName,
+      "phone": phone,
+      "address1": address1,
+      "city": city,
+      "zip": zip,
+      "country_code": countryCode,
     };
   }
 }
@@ -107,24 +142,35 @@ class MidtransItem {
 
 class MidtransTransaction {
   final int total;
+  final String orderId;
   final MidtransCustomer customer;
+  final MidtransAddress address;
   final List<MidtransItem> items;
-  final bool skipCustomer;
   final String customField1;
-  MidtransTransaction(
-    this.total,
+  final String customField2;
+  final String customField3;
+
+  MidtransTransaction({
+    @required this.total,
+    @required this.orderId,
     this.customer,
-    this.items, {
+    this.address,
+    this.items = const [],
     this.customField1,
-    this.skipCustomer = false,
+    this.customField2,
+    this.customField3,
   });
+
   Map<String, dynamic> toJson() {
     return {
       "total": total,
-      "skip_customer": skipCustomer,
+      "order_id": orderId,
       "items": items.map((v) => v.toJson()).toList(),
-      "customer": customer.toJson(),
+      "customer": customer?.toJson(),
+      "address": address?.toJson(),
       "custom_field_1": customField1,
+      "custom_field_2": customField2,
+      "custom_field_3": customField3,
     };
   }
 }

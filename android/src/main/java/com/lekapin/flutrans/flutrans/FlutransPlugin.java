@@ -9,8 +9,11 @@ import com.midtrans.sdk.corekit.core.PaymentMethod;
 import com.midtrans.sdk.corekit.core.TransactionRequest;
 import com.midtrans.sdk.corekit.core.UIKitCustomSetting;
 import com.midtrans.sdk.corekit.core.themes.CustomColorTheme;
+import com.midtrans.sdk.corekit.models.BillingAddress;
 import com.midtrans.sdk.corekit.models.CustomerDetails;
 import com.midtrans.sdk.corekit.models.ItemDetails;
+import com.midtrans.sdk.corekit.models.ShippingAddress;
+import com.midtrans.sdk.corekit.models.snap.CreditCard;
 import com.midtrans.sdk.corekit.models.snap.TransactionResult;
 import com.midtrans.sdk.uikit.SdkUIFlowBuilder;
 
@@ -33,6 +36,7 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
   private final Registrar registrar;
   private final MethodChannel channel;
   private Context context;
+  private Result flutterResult;
 
   /** Plugin registration. */
   public static void registerWith(Registrar registrar) {
@@ -48,15 +52,13 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
 
   @Override
   public void onMethodCall(MethodCall call, Result result) {
+    flutterResult = result;
     if(call.method.equals("init")) {
       initMidtransSdk((String)call.argument("client_key").toString(), call.argument("base_url").toString());
-      result.success();
+      result.success(null);
     } else if(call.method.equals("payment")) {
       String str = call.arguments();
       payment(str);
-    } else if(call.method.equals("directpaymentwithtoken")) {
-      HashMap map = call.arguments();
-      directPaymentWithToken((int)map.get("method"), (String)map.get("token"), (Boolean)map.get("skipCustomer"));
     } else {
       result.notImplemented();
     }
@@ -69,7 +71,6 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
             .setTransactionFinishedCallback(this) // set transaction finish callback (sdk callback)
             .setMerchantBaseUrl(base_url) //set merchant url
             .enableLog(true) // enable sdk log
-            //.setColorTheme(new CustomColorTheme("#4CAF50", "#009688", "#CDDC39")) // will replace theme on snap theme on MAP
             .buildSDK();
   }
 
@@ -77,9 +78,9 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
     try {
         Log.d(TAG, str);
       JSONObject json = new JSONObject(str);
-      JSONObject cJson = json.getJSONObject("customer");
+
       TransactionRequest transactionRequest = new
-              TransactionRequest(System.currentTimeMillis() + "", json.getInt("total"));
+              TransactionRequest(json.getString("order_id"), json.getInt("total"));
       ArrayList<ItemDetails> itemList = new ArrayList<>();
       JSONArray arr = json.getJSONArray("items");
       for(int i = 0; i < arr.length(); i++) {
@@ -87,12 +88,50 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
         ItemDetails item = new ItemDetails(obj.getString("id"), obj.getInt("price"), obj.getInt("quantity"), obj.getString("name"));
         itemList.add(item);
       }
-      CustomerDetails cus = new CustomerDetails();
-      cus.setFirstName(cJson.getString("first_name"));
+
+      JSONObject cJson = json.getJSONObject("customer");
+      if (cJson != null) {
+        CustomerDetails cus = new CustomerDetails();
+        cus.setFirstName(cJson.getString("first_name"));
         cus.setLastName(cJson.getString("last_name"));
         cus.setEmail(cJson.getString("email"));
         cus.setPhone(cJson.getString("phone"));
-      transactionRequest.setCustomerDetails(cus);
+
+
+        JSONObject address = json.getJSONObject("address");
+        if (address != null) {
+          String firstName = address.getString("first_name");
+          String lastName = address.getString("last_name");
+          String phone = address.getString("phone");
+          String address1 = address.getString("address1");
+          String city = address.getString("city");
+          String zip = address.getString("zip");
+          String countryCode = address.getString("country_code");
+          BillingAddress billingAddress = new BillingAddress();
+          billingAddress.setFirstName(firstName);
+          billingAddress.setLastName(lastName);
+          billingAddress.setPhone(phone);
+          billingAddress.setAddress(address1);
+          billingAddress.setCity(city);
+          billingAddress.setPostalCode(zip);
+          billingAddress.setCountryCode(countryCode);
+
+          ShippingAddress shippingAddress = new ShippingAddress();
+          shippingAddress.setFirstName(firstName);
+          shippingAddress.setLastName(lastName);
+          shippingAddress.setPhone(phone);
+          shippingAddress.setAddress(address1);
+          shippingAddress.setCity(city);
+          shippingAddress.setPostalCode(zip);
+          shippingAddress.setCountryCode(countryCode);
+
+          cus.setBillingAddress(billingAddress);
+          cus.setShippingAddress(shippingAddress);
+        }
+
+        transactionRequest.setCustomerDetails(cus);
+      }
+
       if(json.has("custom_field_1"))
         transactionRequest.setCustomField1(json.getString("custom_field_1"));
       if(json.has("custom_field_2"))
@@ -100,9 +139,15 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
       if(json.has("custom_field_3"))
         transactionRequest.setCustomField3(json.getString("custom_field_3"));
       transactionRequest.setItemDetails(itemList);
+
+      CreditCard creditCardOptions = new CreditCard();
+      creditCardOptions.setSaveCard(true);
+
+      transactionRequest.setCreditCard(creditCardOptions);
+
       UIKitCustomSetting setting = MidtransSDK.getInstance().getUIKitCustomSetting();
-      if(json.has("skip_customer"))
-        setting.setSkipCustomerDetailsPages(json.getBoolean("skip_customer"));
+      setting.setSkipCustomerDetailsPages(true);
+
       MidtransSDK.getInstance().setUIKitCustomSetting(setting);
       MidtransSDK.getInstance().setTransactionRequest(transactionRequest);
       MidtransSDK.getInstance().startPaymentUiFlow(context);
@@ -123,17 +168,7 @@ public class FlutransPlugin implements MethodCallHandler, TransactionFinishedCal
       else
         content.put("response", null);
       channel.invokeMethod("onTransactionFinished", content);
-  }
 
-  void directPaymentWithToken(int method, String token, boolean skipCustomer) {
-    try {
-      UIKitCustomSetting setting = MidtransSDK.getInstance().getUIKitCustomSetting();
-      setting.setSkipCustomerDetailsPages(skipCustomer);
-      MidtransSDK.getInstance().setUIKitCustomSetting(setting);
-      MidtransSDK.getInstance().startPaymentUiFlow(context, PaymentMethod.values()[method], token);
-    } catch(Exception e) {
-      Log.d(TAG, "ERROR " + e.getMessage());
-    }
+      flutterResult.success(null);
   }
-
 }

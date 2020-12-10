@@ -43,12 +43,13 @@ FlutterMethodChannel* channel;
             binaryMessenger:[registrar messenger]];
   FlutransPlugin* instance = [[FlutransPlugin alloc] init];
   [registrar addMethodCallDelegate:instance channel:channel];
-    CC_CONFIG.paymentType = MTCreditCardPaymentTypeOneclick;
-    CC_CONFIG.saveCardEnabled = YES;
 }
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
   if([@"init" isEqualToString:call.method ]) {
+      CC_CONFIG.paymentType = MTCreditCardPaymentTypeOneclick;
+      CC_CONFIG.saveCardEnabled = YES;
+      
       NSString *key = call.arguments[@"client_key"];
       NSString *url = call.arguments[@"base_url"];
       NSString *env = call.arguments[@"env"];
@@ -65,39 +66,51 @@ FlutterMethodChannel* channel;
       if([object isKindOfClass:[NSDictionary class]]) {
           NSDictionary *json = object;
           NSDictionary *customer = json[@"customer"];
-          CFAbsoluteTime timeInSeconds = CFAbsoluteTimeGetCurrent();
-          MidtransAddress *address = [MidtransAddress addressWithFirstName:@"flutrans" lastName:@"flutrans" phone:@"081" address:@"address" city:@"city" postalCode:@"55181" countryCode:@"id"];
-          MidtransCustomerDetails *custDetail = [[MidtransCustomerDetails alloc] initWithFirstName:customer[@"first_name"] lastName: customer[@"last_name"] email: customer[@"email"] phone: customer[@"phone"] shippingAddress:address billingAddress:address];
+          
+          MidtransCustomerDetails *customerDetails = nil;
+          if (customer && ![customer isEqual:[NSNull null]]) {
+              NSDictionary *address = json[@"address"];
+              MidtransAddress *midtransAddress = nil;
+              
+              if (address && ![address isEqual:[NSNull null]]) {
+                  midtransAddress = [MidtransAddress addressWithFirstName: address[@"first_name"] lastName: address[@"last_name"] phone: address[@"phone"] address: address[@"address1"] city: address[@"city"] postalCode: address[@"zip"] countryCode:address[@"country_code"]];
+              }
+              
+              customerDetails = [[MidtransCustomerDetails alloc] initWithFirstName:customer[@"first_name"] lastName: customer[@"last_name"] email: customer[@"email"] phone: customer[@"phone"] shippingAddress:midtransAddress billingAddress:midtransAddress];
+          }
+          
+          
           MidtransTransactionDetails *transDetail = [MidtransTransactionDetails alloc];
-          [transDetail initWithOrderID:[NSString stringWithFormat:@"%f", timeInSeconds] andGrossAmount: json[@"total"]];
-          NSMutableArray *arr = [NSMutableArray new];
+          transDetail = [transDetail initWithOrderID: json[@"order_id"] andGrossAmount: json[@"total"]];
+          
+          NSMutableArray *itemDetails = [NSMutableArray new];
           NSArray *items = json[@"items"];
           for(int i = 0; i < [items count]; i++) {
               NSDictionary *itemJson = items[i];
               MidtransItemDetail *item = [MidtransItemDetail alloc];
-              [item initWithItemID:itemJson[@"id"] name:itemJson[@"name"] price: itemJson[@"price"] quantity:itemJson[@"quantity"]];
-              [arr addObject:item];
+              item = [item initWithItemID:itemJson[@"id"] name:itemJson[@"name"] price: itemJson[@"price"] quantity:itemJson[@"quantity"]];
+              [itemDetails addObject:item];
           }
+
           NSMutableArray *arrayOfCustomField = [NSMutableArray new];
           [arrayOfCustomField addObject:@{MIDTRANS_CUSTOMFIELD_1:json[@"custom_field_1"]}];
           [arrayOfCustomField addObject:@{MIDTRANS_CUSTOMFIELD_2:json[@"custom_field_2"]}];
           [arrayOfCustomField addObject:@{MIDTRANS_CUSTOMFIELD_3:json[@"custom_field_3"]}];
-          [[MidtransMerchantClient shared] requestTransactionTokenWithTransactionDetails:transDetail itemDetails:arr customerDetails:custDetail customField:arrayOfCustomField binFilter:nil blacklistBinFilter:nil transactionExpireTime:nil completion:^(MidtransTransactionTokenResponse *token, NSError *error)
+          [[MidtransMerchantClient shared] requestTransactionTokenWithTransactionDetails:transDetail itemDetails:itemDetails customerDetails:customerDetails customField:arrayOfCustomField binFilter:nil blacklistBinFilter:nil transactionExpireTime:nil completion:^(MidtransTransactionTokenResponse *token, NSError *error)
            {
                if (token) {
                    MidtransUIPaymentViewController *vc = [[MidtransUIPaymentViewController new] initWithToken:token];
                    vc.paymentDelegate = delegate;
                    
-                   UIWindow* window = [UIApplication sharedApplication].keyWindow;
-                   UIViewController *viewController = window.rootViewController;
+                   UIViewController *viewController = [UIApplication sharedApplication].keyWindow.rootViewController;
                    [viewController presentViewController:vc animated:YES completion:nil];
                    
-                   return result(0);
+                   result(0);
                } else {
-                       return result([FlutterError
-                                      errorWithCode:error.domain
-                                            message:error.localizedDescription
-                                            details:nil]);
+                   result([FlutterError
+                      errorWithCode:error.localizedDescription
+                            message:error.localizedDescription
+                            details:nil]);
                }
            }];
       }
