@@ -33,8 +33,24 @@ android {
     lintOptions {
         disable 'InvalidPackage'
     }
+
+    productFlavors {
+        dev {
+            flavorDimensions "default"
+        }
+
+        qc {
+            flavorDimensions "default"
+        }
+
+        production {
+            flavorDimensions "default"
+        }
+    }
     
     dependencies {
-        compile 'com.midtrans:uikit:1.23.2'
+        devCompile 'com.midtrans:uikit:1.23.2-SANDBOX'
+        qcCompile 'com.midtrans:uikit:1.23.2-SANDBOX'
+        productionCompile 'com.midtrans:uikit:1.23.2'
     }
 }
