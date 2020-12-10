@@ -47,9 +47,6 @@ FlutterMethodChannel* channel;
 
 - (void)handleMethodCall:(FlutterMethodCall*)call result:(FlutterResult)result {
   if([@"init" isEqualToString:call.method ]) {
-      CC_CONFIG.paymentType = MTCreditCardPaymentTypeOneclick;
-      CC_CONFIG.saveCardEnabled = YES;
-      
       NSString *key = call.arguments[@"client_key"];
       NSString *url = call.arguments[@"base_url"];
       NSString *env = call.arguments[@"env"];
@@ -59,6 +56,7 @@ FlutterMethodChannel* channel;
       [CONFIG setClientKey:key environment:serverEnvirontment merchantServerURL:url];
       return result(0);
   } else if([@"payment" isEqualToString:call.method]) {
+      CC_CONFIG.saveCardEnabled = YES;
       NSString *str = call.arguments;
       id delegate = [FlutransPayment alloc];
       NSError *error = nil;
